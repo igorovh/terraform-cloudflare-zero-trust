@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cloudflare-zero-trust-identity-broker",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-27",
+  "workers_dev": false,
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AUTH_STORE",
+        "class_name": "IdentityBrokerAuthStore"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["IdentityBrokerAuthStore"]
+    }
+  ],
+  "vars": {
+    "ISSUER": "https://identity.enhancer.at",
+    "BRAND_NAME": "Enhancer Identity",
+    "OIDC_CLIENT_ID": "cloudflare-access",
+    "CLOUDFLARE_CALLBACK_URL": "https://REPLACE_ME.cloudflareaccess.com/cdn-cgi/access/callback",
+    "GITHUB_CLIENT_ID": "REPLACE_ME",
+    "DISCORD_CLIENT_ID": "REPLACE_ME",
+    "DISCORD_ROLE_GUILD_IDS": ""
+  }
+}

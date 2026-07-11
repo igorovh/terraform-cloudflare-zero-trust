@@ -1,0 +1,20 @@
+{
+  "name": "cloudflare-zero-trust-identity-broker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.ts --format=esm --target=es2022 --outfile=src/index.js",
+    "check:build": "node scripts/check-build.mjs",
+    "check": "tsc --noEmit",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "generate-key": "node scripts/generate-key.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260620.0",
+    "esbuild": "^0.27.1",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.22.0"
+  }
+}

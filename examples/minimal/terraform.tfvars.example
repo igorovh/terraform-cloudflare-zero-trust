@@ -1,0 +1,5 @@
+cloudflare_api_token  = "REPLACE_ME"
+cloudflare_account_id = "REPLACE_ME"
+admin_emails          = ["admin@example.com"]
+application_name      = "Grafana"
+application_domain    = "grafana.example.com"
