@@ -6,7 +6,7 @@ Terraform module for Cloudflare Zero Trust Access applications, groups, policies
 
 ```hcl
 module "zero_trust" {
-  source = "git::https://github.com/igorovh/terraform-cloudflare-zero-trust.git?ref=v0.1.0"
+  source = "git::https://github.com/igorovh/terraform-cloudflare-zero-trust.git?ref=v0.2.0"
 
   cloudflare_account_id = var.cloudflare_account_id
 
@@ -34,7 +34,7 @@ Configure the Cloudflare provider, then run `terraform init` and `terraform appl
 
 ## Examples and Docs
 
-- [Examples](examples/): [minimal](examples/minimal/), [GitHub](examples/github/), [custom OIDC](examples/custom-oidc/), and [Identity Broker](examples/identity-broker/).
+- [Examples](examples/): [minimal](examples/minimal/), [GitHub](examples/github/), [custom OIDC](examples/custom-oidc/), [Identity Broker](examples/identity-broker/), and [PWA](examples/pwa/).
 - [Identity Broker Worker documentation](identity-broker/README.md)
 
 ## Cloudflare Token Permissions
@@ -55,7 +55,7 @@ If using `identity_broker.custom_domain`, include permissions needed to manage W
 
 ```hcl
 module "zero_trust" {
-  source = "git::https://github.com/igorovh/terraform-cloudflare-zero-trust.git?ref=v0.1.0"
+  source = "git::https://github.com/igorovh/terraform-cloudflare-zero-trust.git?ref=v0.2.0"
 
   cloudflare_account_id = var.cloudflare_account_id
 
@@ -115,7 +115,7 @@ Use `principal_aliases` for friendly names while keeping canonical ID-based prin
 
 ```hcl
 module "zero_trust" {
-  source = "git::https://github.com/igorovh/terraform-cloudflare-zero-trust.git?ref=v0.1.0"
+  source = "git::https://github.com/igorovh/terraform-cloudflare-zero-trust.git?ref=v0.2.0"
 
   cloudflare_account_id = var.cloudflare_account_id
   principal_idp_key      = "identity_broker"
@@ -207,6 +207,39 @@ Set `identity_broker.cloudflare_team_name` to your Cloudflare Zero Trust team su
 https://<team-name>.cloudflareaccess.com/cdn-cgi/access/callback
 ```
 
+## Progressive Web Apps Behind Access
+
+Browsers fetch the web app manifest and the icons it lists without cookies. Behind Access, these requests get a redirect to the login page instead of the files, so the browser cannot install the PWA or show its icons.
+
+Set `bypass_paths` on the application to let these files through without login:
+
+```hcl
+applications = {
+  dispatch = {
+    name       = "Dispatch"
+    domain     = "dispatch.example.com"
+    group_keys = ["admins"]
+
+    bypass_paths = [
+      "/manifest.webmanifest",
+      "/icons/*",
+    ]
+  }
+}
+```
+
+For each application with `bypass_paths`, the module creates a second self-hosted Access application named `<name> (bypass)`. Its destinations are the paths on the application host, for example `dispatch.example.com/manifest.webmanifest`, and it has one `bypass` policy that includes everyone. Access applies the most specific path first, so these paths skip the domain-wide application.
+
+- Paths must start with `/` and must not contain a scheme, host, query, or fragment. Wildcards such as `/icons/*` are allowed.
+- Paths are added to the host of `domain`. If `domain` contains a path, it is not prepended.
+- Bypassed paths are public, and requests to them carry no Access JWT. Only bypass static files that contain nothing private.
+
+See [examples/pwa](examples/pwa/).
+
+### Cookie Settings
+
+Set `same_site_cookie_attribute` (`none`, `lax`, or `strict`) and `http_only_cookie_attribute` on an application to control the Access session cookie. When unset, Cloudflare defaults apply.
+
 ## Custom Identity Providers
 
 Use `identity_providers` for any Cloudflare-supported type such as `github`, `google`, `oidc`, `saml`, `okta`, or `onetimepin`.
@@ -230,7 +263,7 @@ The module controls Cloudflare Access policy. It does not hide or firewall your 
 - `principal_idp_key`: IdP key whose OIDC claim contains `zt_principals`.
 - `principal_claim_name`: OIDC claim name used for principal matching. Defaults to `zt_principals`.
 - `groups`: Cloudflare Access groups.
-- `applications`: Cloudflare Access applications and generated allow policies.
+- `applications`: Cloudflare Access applications and generated allow policies. Optional `bypass_paths`, `same_site_cookie_attribute`, and `http_only_cookie_attribute`.
 
 ## Outputs
 
@@ -238,4 +271,5 @@ The module controls Cloudflare Access policy. It does not hide or firewall your 
 - `identity_provider_redirect_urls`
 - `group_ids`
 - `application_ids`
-- `application_auds`
+- `application_auds` (main applications only)
+- `bypass_application_ids`
