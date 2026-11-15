@@ -35,3 +35,8 @@ output "application_auds" {
   value       = { for key, app in cloudflare_zero_trust_access_application.this : key => app.aud }
   description = "Map of application key to Cloudflare Access AUD tag."
 }
+
+output "bypass_application_ids" {
+  value       = { for key, app in cloudflare_zero_trust_access_application.bypass : key => app.id }
+  description = "Map of application key to the Cloudflare Access bypass application ID created for its bypass_paths."
+}

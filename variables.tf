@@ -178,17 +178,36 @@ variable "principal_claim_name" {
 
 variable "applications" {
   type = map(object({
-    name                      = string
-    domain                    = string
-    type                      = optional(string, "self_hosted")
-    session_duration          = optional(string, "24h")
-    group_keys                = optional(list(string), [])
-    allowed_idp_keys          = optional(list(string), [])
-    auto_redirect_to_identity = optional(bool, false)
-    app_launcher_visible      = optional(bool, true)
+    name                       = string
+    domain                     = string
+    type                       = optional(string, "self_hosted")
+    session_duration           = optional(string, "24h")
+    group_keys                 = optional(list(string), [])
+    allowed_idp_keys           = optional(list(string), [])
+    auto_redirect_to_identity  = optional(bool, false)
+    app_launcher_visible       = optional(bool, true)
+    same_site_cookie_attribute = optional(string)
+    http_only_cookie_attribute = optional(bool)
+    bypass_paths               = optional(list(string), [])
   }))
-  description = "Applications to protect with Cloudflare Zero Trust Access."
+  description = "Applications to protect with Cloudflare Zero Trust Access. bypass_paths creates a separate public bypass application for those paths on the application host."
   default     = {}
+
+  validation {
+    condition = alltrue(flatten([
+      for _, app in var.applications : [
+        for path in app.bypass_paths : can(regex("^/[^/\\s?#][^\\s?#]*$", path))
+      ]
+    ]))
+    error_message = "applications[*].bypass_paths must be absolute paths starting with a single /, without scheme, host, query, or fragment, for example /manifest.webmanifest."
+  }
+
+  validation {
+    condition = alltrue([
+      for _, app in var.applications : app.same_site_cookie_attribute == null || contains(["none", "lax", "strict"], app.same_site_cookie_attribute)
+    ])
+    error_message = "applications[*].same_site_cookie_attribute must be one of none, lax, or strict."
+  }
 
   validation {
     condition = alltrue([
