@@ -140,6 +140,13 @@ locals {
     ]
   }
 
+  bypass_application_uris = {
+    for app_key, app in var.applications : app_key => [
+      for path in app.bypass_paths : "${split("/", app.domain)[0]}${path}"
+    ]
+    if length(app.bypass_paths) > 0
+  }
+
   group_oidc_principals = {
     for group_key, principals in local.group_principals : group_key => [
       for principal in principals : principal
@@ -280,15 +287,17 @@ resource "cloudflare_zero_trust_access_group" "this" {
 }
 
 resource "cloudflare_zero_trust_access_application" "this" {
-  for_each                  = var.applications
-  account_id                = var.cloudflare_account_id
-  name                      = each.value.name
-  domain                    = each.value.domain
-  type                      = each.value.type
-  session_duration          = each.value.session_duration
-  allowed_idps              = [for idp_key in each.value.allowed_idp_keys : local.identity_provider_ids[idp_key]]
-  auto_redirect_to_identity = each.value.auto_redirect_to_identity
-  app_launcher_visible      = each.value.app_launcher_visible
+  for_each                   = var.applications
+  account_id                 = var.cloudflare_account_id
+  name                       = each.value.name
+  domain                     = each.value.domain
+  type                       = each.value.type
+  session_duration           = each.value.session_duration
+  allowed_idps               = [for idp_key in each.value.allowed_idp_keys : local.identity_provider_ids[idp_key]]
+  auto_redirect_to_identity  = each.value.auto_redirect_to_identity
+  app_launcher_visible       = each.value.app_launcher_visible
+  same_site_cookie_attribute = each.value.same_site_cookie_attribute
+  http_only_cookie_attribute = each.value.http_only_cookie_attribute
 
   policies = [
     for group_key in each.value.group_keys : {
@@ -309,4 +318,23 @@ resource "cloudflare_zero_trust_access_application" "this" {
       error_message = "applications must explicitly set allowed_idp_keys when identity providers are configured."
     }
   }
+}
+
+# Access matches the most specific path first, so these paths skip the domain-wide application.
+resource "cloudflare_zero_trust_access_application" "bypass" {
+  for_each             = local.bypass_application_uris
+  account_id           = var.cloudflare_account_id
+  name                 = "${var.applications[each.key].name} (bypass)"
+  domain               = each.value[0]
+  type                 = "self_hosted"
+  app_launcher_visible = false
+
+  destinations = [for uri in each.value : { type = "public", uri = uri }]
+
+  policies = [{
+    name       = "bypass-everyone"
+    decision   = "bypass"
+    precedence = 1
+    include    = [{ everyone = {} }]
+  }]
 }
